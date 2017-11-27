@@ -1,8 +1,8 @@
 version: "3"
 services:
-  server:
+  server1:
     volumes: 
-      - '.:/Users/dylan/Documents/College/CSY5/ScalableComputing/FileServer/Server'
+      - '.:/Users/dylan/Documents/College/CSY5/ScalableComputing/FileServer/Servers/Server1'
     # replace username/repo:tag with your name and image details
     build: .
     deploy:
@@ -13,4 +13,4 @@ services:
       restart_policy:
         condition: on-failure
     ports:
-      - "1000:80"
+      - "2000:80"

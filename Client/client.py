@@ -2,8 +2,9 @@
 import json
 import requests
 
+ip = "192.168.1.19"
 def getFile(filename): #ask for work
-    response = requests.get('http://10.6.90.53:1000/get_file/'+filename)
+    response = requests.get('http://'+ip+':1000/get_file/'+filename)
 
     if response.status_code is 200:
         with open("Files/"+filename, 'wb') as fd:
@@ -14,10 +15,10 @@ def getFile(filename): #ask for work
 
 def uploadFile(filename):
     with open("Files/"+filename, 'rb') as f: 
-        response = requests.post('http://10.6.90.53:1000/send_file', files={filename: f})
+        response = requests.post('http://'+ip+':1000/send_file', files={filename: f})
     print(response.text)
 
 if __name__ == "__main__":
-    print(requests.get('http://10.6.90.53:1000'))
+    print(requests.get('http://'+ip+':1000'))
     name = str(input("Send a file: "))
     uploadFile(name)

@@ -1,14 +1,10 @@
 #pylint: disable=C0111, C0103
-from flask import Flask, request, send_from_directory
-import socket
 import json
-import requests
-
-
+from flask import Flask, request, send_from_directory
 
 app = Flask(__name__)
 
-@app.route("/answer", methods = ['POST']) #to return answer
+@app.route("/answer", methods=['POST']) #to return answer
 def incorporate():
     return "answer", 200
 
@@ -22,7 +18,7 @@ def recv_file():
     file_name = list(response.keys())[0]
     new_file = list(response.values())[0][0].read()
     with open("Files/"+file_name, 'wb') as fd:
-            fd.write(new_file)
+        fd.write(new_file)
     return "file received", 200
 
 
