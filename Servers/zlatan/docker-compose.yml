@@ -2,7 +2,7 @@ version: "3"
 services:
   server2:
     volumes: 
-      - '.:/Users/dylan/Documents/College/CSY5/ScalableComputing/FileServer/Servers/Server2'
+      - '.:/Users/dylan/Documents/College/CSY5/ScalableComputing/FileServer/Servers/zlatan'
     # replace username/repo:tag with your name and image details
     build: .
     deploy:

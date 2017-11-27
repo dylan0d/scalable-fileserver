@@ -1,12 +1,9 @@
 #pylint: disable=C0111, C0103
+import os
 import json
 from flask import Flask, request, send_from_directory
 
 app = Flask(__name__)
-
-@app.route("/answer", methods=['POST']) #to return answer
-def incorporate():
-    return "answer", 200
 
 @app.route("/get_file/<path:path>")
 def get_file(path):
@@ -17,7 +14,11 @@ def recv_file():
     response = dict(request.files)
     file_name = list(response.keys())[0]
     new_file = list(response.values())[0][0].read()
-    with open("Files/"+file_name, 'wb') as fd:
+    if not os.path.exists(os.path.dirname('./Files/'+file_name)):
+        print("creating directory")
+        os.makedirs(os.path.dirname('./Files/'+file_name))
+    with open("Files/"+file_name, 'wb+') as fd:
+        print("writing file")
         fd.write(new_file)
     return "file received", 200
 
