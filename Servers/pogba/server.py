@@ -1,7 +1,11 @@
 #pylint: disable=C0111, C0103
 import os
 import json
+import requests
 from flask import Flask, request, send_from_directory
+lockserver = '9000'
+ip = "10.101.20.41"
+
 
 app = Flask(__name__)
 
@@ -20,6 +24,11 @@ def recv_file():
     with open("Files/"+file_name, 'wb+') as fd:
         print("writing file")
         fd.write(new_file)
+    updated_lock = False
+    while not updated_lock:
+        response = requests.get('http://'+ip+':'+lockserver+'/unlock_file/'+file_name)
+        updated_lock = response.status_code == 200
+
     return "file received", 200
 
 

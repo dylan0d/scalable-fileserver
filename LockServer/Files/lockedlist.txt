@@ -1,0 +1,2 @@
+pogba/pog.jpg 0
+zlatan/ibra.jpg 1
