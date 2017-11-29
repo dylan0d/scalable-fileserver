@@ -1,7 +1,6 @@
 #pylint: disable=C0111, C0103
 import json
-from flask import Flask, request, send_from_directory
-import requests
+from flask import Flask
 
 app = Flask(__name__)
 

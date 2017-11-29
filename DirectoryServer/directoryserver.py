@@ -4,7 +4,7 @@ from flask import Flask, request, send_from_directory
 import requests
 
 app = Flask(__name__)
-ip = "10.101.20.41"
+ip = "10.6.86.174"
 directory_dict = {
     "pogba":'2000', #server1
     "zlatan":'3000', #server2
@@ -13,12 +13,26 @@ directory_dict = {
 
 @app.route("/get_file/<path:filepath>")
 def get_file(filepath):
-    parts = filepath.split('/')
-    is_locked = requests.get('http://'+ip+':'+directory_dict['lockserver']+'/get_file/'+filepath)
-    print(is_locked.status_code)
+    directory = filepath.split('/')[0] #get port
+    file_and_version = filepath.rsplit('/', 1) #get file and version
+    is_locked = requests.get('http://'+ip+':'+directory_dict['lockserver']+'/get_file/'+file_and_version[0])
+    client_version_number = file_and_version[1]
+    current_version_number = 0
     if is_locked.status_code == 200:
-        response = requests.get('http://'+ip+':'+directory_dict[parts[0]]+'/get_file/'+filepath)
-        return response.content, response.status_code
+        cache = open("Files/cacheversions.txt", 'r')
+        versions = cache.readlines()
+        for i, line in enumerate(versions):
+            details = line.split()
+            if details[0] == file_and_version[0]:
+                index = i
+                current_version_number = details[1].strip('\n')
+
+        if int(client_version_number) == int(current_version_number):
+            return "cached copy is up to date", 204
+        else:
+            response = requests.get('http://'+ip+':'+directory_dict[directory]+'/get_file/'+file_and_version[0])
+            response.headers['new-file-version'] = current_version_number
+            return (response.content, response.status_code, response.headers.items())
     else:
         return "file is locked", 409
 
@@ -28,8 +42,30 @@ def recv_file():
     file_name = list(response.keys())[0]
     new_file = list(response.values())[0][0]
     folder = file_name.split('/')[0]
+    versionNumber = request.headers['File-Version']
+    print(versionNumber)
+    newVersionNumber = str(int(versionNumber)+1)
+    cache = open("Files/cacheversions.txt", 'r')
+    versions = cache.readlines()
+    found = False
+    for i, line in enumerate(versions):
+        details = line.split()
+        if details[0] == file_name:
+            versions[i] = "%s %s\n" % (details[0], newVersionNumber)
+            found = True
+    if not found:
+        versions.append("%s %s\n" % (details[0], newVersionNumber))
+
     response = requests.post('http://'+ip+':'+directory_dict[folder]+'/send_file', files={file_name: new_file})
-    return response.content, 200
+
+    if response.status_code == 200:
+        with open("Files/cacheversions.txt", 'w') as cache:
+                for new_line in versions:
+                    cache.write("%s" % new_line)
+        response.headers['new-file-version'] = newVersionNumber
+        return (response.content, response.status_code, response.headers.items())
+
+    return response.content, response.status_code
 
 
 @app.route("/") #if you want to check that manager is up
