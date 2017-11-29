@@ -1,3 +1,3 @@
 pogba/pog.jpg 0
-zlatan/ibra.jpg 0
-pogba/requirements.txt 0
+france/flag.jpg 0
+requirements.txt 0

@@ -8,11 +8,11 @@ ip = "10.6.86.174"
 def getVersionNumber(filename, versions):
     version_number = '-1'
     for i, line in enumerate(versions):
-        details = line.split()
-        if details[0] == filename:
-            index = i
-            version_number = details[1].strip('\n')
-            return version_number
+        if not (line == "" or line == "\n"):
+            details = line.split()
+            if details[0] == filename:
+                version_number = details[1].strip('\n')
+                return version_number
     return version_number
 
 def getFile(filename): #ask for file
@@ -58,21 +58,24 @@ def uploadFile(to_upload):
     with open("Files/"+to_upload, 'rb') as f:
         file_version = {"file-version": version_number}
         response = requests.post('http://'+ip+':1000/send_file', files={to_upload: f}, headers = file_version)
-        newVersionNumber = response.headers['new-file-version']
-        print(newVersionNumber)
-        found = True
-        for i, line in enumerate(versions):
-            details = line.split()
-            print(details)
-            if details[0] == to_upload:
-                versions[i] = "%s %s\n" % (details[0], newVersionNumber)
-                found = True
-                break
-            if not found:
-                versions.append("%s %s\n" % (details[0], newVersionNumber))
-        with open("Files/cacheversions.txt", 'w') as cache:
-                for new_line in versions:
-                    cache.write("%s" % new_line)
+
+    newVersionNumber = response.headers['new-file-version']
+    print(newVersionNumber)
+    found = False
+    for i, line in enumerate(versions):
+        details = line.split()
+        print(details)
+        if details[0] == to_upload:
+            versions[i] = "%s %s\n" % (details[0], newVersionNumber)
+            found = True
+            break
+    if not found:
+        versions.append("%s %s\n" % (to_upload, newVersionNumber))
+    print("got here")
+    print(versions)
+    cache = open("Files/cacheversions.txt", 'w')
+    for new_line in versions:
+        cache.write("%s" % new_line)
 
 
 if __name__ == "__main__":
@@ -81,5 +84,5 @@ if __name__ == "__main__":
     actiondict = {'r': getFile, 's': uploadFile}
     while not done:
         action = input("Retrieve File: r\nSend File: s\n")
-        filename = input("Perform action on which file?\n")
-        actiondict[action](filename)
+        file_to_use = input("Perform action on which file?\n")
+        actiondict[action](file_to_use)
