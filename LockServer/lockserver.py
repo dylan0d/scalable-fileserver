@@ -41,6 +41,21 @@ def unlockFile(filepath):
         lockedFile.write("%s" % new_line)
     return "unlocked", 200
 
+@app.route("/delete_file/<path:filepath>")
+def delete_file(filepath):
+    lockedFile = open("Files/lockedlist.txt", 'r')
+    files = lockedFile.readlines()
+    for i, line in enumerate(files):
+        details = line.split()
+        if details[0] == filepath:
+            files.remove(line)
+    with open("Files/lockedlist.txt", 'w') as lockedFile:
+        for new_line in files:
+            lockedFile.write("%s" % new_line)
+    
+    return "file deleted", 200
+
+
 
 @app.route("/") #if you want to check that manager is up
 def hello():

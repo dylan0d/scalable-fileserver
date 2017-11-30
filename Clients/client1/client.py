@@ -4,6 +4,7 @@ import json
 import requests
 
 ip = "10.6.86.174"
+lockserver = "9000"
 
 def getVersionNumber(filename, versions):
     version_number = '-1'
@@ -77,12 +78,26 @@ def uploadFile(to_upload):
     for new_line in versions:
         cache.write("%s" % new_line)
 
+def unlock(to_unlock):
+    response = requests.get('http://'+ip+':'+lockserver+'/unlock_file/'+to_unlock)
+    if response.status_code == 200:
+        print("file unlocked")
+    else:
+        print("unlock failed")
+
+def delete(to_delete):
+    response = requests.get('http://'+ip+':1000/delete_file/'+to_delete)
+    if response.status_code == 200:
+        os.remove("Files/"+to_delete)
+        print("File deleted")
+    else:
+        print("File not deleted")
 
 if __name__ == "__main__":
     print(requests.get('http://'+ip+':1000'))
     done = False
-    actiondict = {'r': getFile, 's': uploadFile}
+    actiondict = {'r': getFile, 's': uploadFile, 'u': unlock, 'd':delete}
     while not done:
-        action = input("Retrieve File: r\nSend File: s\n")
+        action = input("Retrieve File: r\nSend File: s\nUnlock File: u\nDelete File: d\n")
         file_to_use = input("Perform action on which file?\n")
         actiondict[action](file_to_use)

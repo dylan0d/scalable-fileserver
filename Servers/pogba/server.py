@@ -31,6 +31,15 @@ def recv_file():
 
     return "file received", 200
 
+@app.route("/delete_file/<path:filepath>")
+def delete_file(filepath):
+    response = requests.get('http://'+ip+':'+lockserver+'/delete_file/'+filepath)
+    if response.status_code == 200:
+        os.remove("Files/"+filepath)
+        return "file deleted", 200
+    else:
+        print("broke at server")
+        return "file not deleted", 500
 
 @app.route("/") #if you want to check that manager is up
 def hello():

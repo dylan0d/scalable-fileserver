@@ -1,1 +1,2 @@
+pogba/pog.jpg 3
 france/flag.jpg 1

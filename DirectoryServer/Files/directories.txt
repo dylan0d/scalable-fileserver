@@ -1,3 +1,2 @@
-pogba 2000
-france 3000
-requirements.txt 2000
+pogba 3000
+france 2000

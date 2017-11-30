@@ -76,7 +76,7 @@ def recv_file():
     for i, line in enumerate(directories):
         if not (line == "" or line == "/n"):
             details = line.split()
-            if details[0] == file_name:
+            if details[0] == folder:
                 found_folder = True
                 break
     if not found_folder:
@@ -99,6 +99,29 @@ def recv_file():
 
     return response.content, response.status_code
 
+@app.route("/delete_file/<path:filepath>")
+def delete_file(filepath):
+    with open("Files/directories.txt", 'r') as directory_file:
+        for line in directory_file.readlines():
+            if not (line == "" or line == "/n"):
+                details = line.split()
+                directory_dict[details[0]] = details[1].strip('\n')
+
+    directory = filepath.split('/')[0] #get port
+    response = requests.get('http://'+ip+':'+directory_dict[directory]+'/delete_file/'+filepath)
+    if response.status_code == 200:
+        cache = open("Files/cacheversions.txt", 'r')
+        versions = cache.readlines()
+        for i, line in enumerate(versions):
+            details = line.split()
+            if details[0] == filepath:
+                versions.remove(line)
+        with open("Files/cacheversions.txt", 'w') as cache:
+            for new_line in versions:
+                cache.write("%s" % new_line)
+    
+    return "file deleted", 200
+                    
 
 @app.route("/") #if you want to check that manager is up
 def hello():
