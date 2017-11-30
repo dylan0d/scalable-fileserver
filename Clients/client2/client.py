@@ -3,7 +3,7 @@ import os
 import json
 import requests
 
-ip = "10.101.20.40"
+ip = "192.168.1.19"
 lockserver = "9000"
 
 def getVersionNumber(filename, versions):
@@ -46,13 +46,16 @@ def getFile(filename): #ask for file
         with open("Files/cacheversions.txt", 'w') as cache:
             for new_line in versions:
                 cache.write("%s" % new_line)
-        return True
+        return 1
     elif response.status_code == 204:
         print("current version of file is up to date")
-        return True
+        return 1
     elif response.status_code == 409:
         print(filename, " is currently locked")
-        return False
+        return 0
+    elif response.status_code == 404:
+        print("no remote file, creating locally")
+        return 2
 
 def uploadFile(to_upload):
     cache = open("Files/cacheversions.txt", 'r')
@@ -67,12 +70,13 @@ def uploadFile(to_upload):
     print(newVersionNumber)
     found = False
     for i, line in enumerate(versions):
-        details = line.split()
-        print(details)
-        if details[0] == to_upload:
-            versions[i] = "%s %s\n" % (details[0], newVersionNumber)
-            found = True
-            break
+        if not(line == "" or line == '\n'):
+            details = line.split()
+            print(details)
+            if details[0] == to_upload:
+                versions[i] = "%s %s\n" % (details[0], newVersionNumber)
+                found = True
+                break
     if not found:
         versions.append("%s %s\n" % (to_upload, newVersionNumber))
     print("got here")
@@ -97,11 +101,16 @@ def delete(to_delete):
         print("File not deleted")
 
 def open_file(name):
-    if getFile(name):
+    result = getFile(name)
+    if result == 1:
         with open("Files/"+name) as new_file:
             print(new_file.read())
+    if not result == 0:
         print("write new contents for file")
         to_write = input()
+        directory = name.split('/')[0]
+        if not os.path.exists("Files/"+directory):
+            os.makedirs("Files/"+directory)
         with open("Files/"+name, 'w+') as fd:
             fd.write(to_write)
         uploadFile(name)

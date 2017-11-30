@@ -5,7 +5,7 @@ from flask import Flask, request
 import requests
 
 app = Flask(__name__)
-ip = "10.101.20.40"
+ip = "192.168.1.19"
 servers = ['2000', '3000']
 directory_dict = {
     "lockserver":'9000'
@@ -20,6 +20,7 @@ def get_file(filepath):
                 directory_dict[details[0]] = details[1].strip('\n')
 
     directory = filepath.split('/')[0] #get port
+    print(directory)
     file_and_version = filepath.rsplit('/', 1) #get file and version
     is_locked = requests.get('http://'+ip+':'+directory_dict['lockserver']+'/get_file/'+file_and_version[0])
     client_version_number = file_and_version[1]
@@ -35,9 +36,13 @@ def get_file(filepath):
         if int(client_version_number) == int(current_version_number):
             return "cached copy is up to date", 204
         else:
-            response = requests.get('http://'+ip+':'+directory_dict[directory]+'/get_file/'+file_and_version[0])
-            response.headers['new-file-version'] = current_version_number
-            return (response.content, response.status_code, response.headers.items())
+            if directory in directory_dict:
+                response = requests.get('http://'+ip+':'+directory_dict[directory]+'/get_file/'+file_and_version[0])
+                response.headers['new-file-version'] = current_version_number
+                return (response.content, response.status_code, response.headers.items())
+            else:
+                print ("fucked up")
+                return "file doesn't exist", 404
     else:
         return "file is locked", 409
 

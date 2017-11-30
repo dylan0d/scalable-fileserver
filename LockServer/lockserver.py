@@ -10,12 +10,13 @@ def checkFile(filepath):
     lockedFile = open("Files/lockedlist.txt", 'r')
     files = lockedFile.readlines()
     for i, line in enumerate(files):
-        details = line.split()
-        if details[0] == filepath:
-            if details[1] == '1':
-                return "locked", 409
-            else:
-                files[i] = details[0] + " 1\n"
+        if not (line == "" or line == "\n"):
+            details = line.split()
+            if details[0] == filepath:
+                if details[1] == '1':
+                    return "locked", 409
+                else:
+                    files[i] = details[0] + " 1\n"
     lockedFile = open("Files/lockedlist.txt", 'w')
     for new_line in files:
         lockedFile.write("%s" % new_line)

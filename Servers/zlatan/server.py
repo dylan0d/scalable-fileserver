@@ -4,14 +4,17 @@ import json
 import requests
 from flask import Flask, request, send_from_directory
 lockserver = '9000'
-ip = "10.101.20.40"
+ip = "192.168.1.19"
 
 
 app = Flask(__name__)
 
 @app.route("/get_file/<path:path>")
 def get_file(path):
-    return send_from_directory('./Files', path), 200
+    if os.path.isfile("./Files/"+path):
+        return send_from_directory('./Files', path), 200
+    else:
+        return "file not found", 404
 
 @app.route("/send_file", methods = ['POST'])
 def recv_file():
