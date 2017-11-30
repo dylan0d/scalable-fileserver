@@ -1,2 +1,1 @@
-pogba 3000
-france 2000
+req 3000

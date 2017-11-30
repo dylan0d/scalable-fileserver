@@ -1,2 +1,1 @@
-france/flag.jpg 1
-france.flag.jpg 0
+req/requirements.txt 1

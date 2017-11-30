@@ -3,7 +3,7 @@ import os
 import json
 import requests
 
-ip = "10.6.86.174"
+ip = "10.101.20.40"
 lockserver = "9000"
 
 def getVersionNumber(filename, versions):
@@ -46,10 +46,13 @@ def getFile(filename): #ask for file
         with open("Files/cacheversions.txt", 'w') as cache:
             for new_line in versions:
                 cache.write("%s" % new_line)
+        return True
     elif response.status_code == 204:
         print("current version of file is up to date")
+        return True
     elif response.status_code == 409:
         print(filename, " is currently locked")
+        return False
 
 def uploadFile(to_upload):
     cache = open("Files/cacheversions.txt", 'r')
@@ -93,11 +96,26 @@ def delete(to_delete):
     else:
         print("File not deleted")
 
+def open_file(name):
+    if getFile(name):
+        with open("Files/"+name) as new_file:
+            print(new_file.read())
+        print("write new contents for file")
+        to_write = input()
+        with open("Files/"+name, 'w+') as fd:
+            fd.write(to_write)
+        uploadFile(name)
+        print("file modified")
+    else:
+        print("file is locked")
+
+
 if __name__ == "__main__":
     print(requests.get('http://'+ip+':1000'))
     done = False
-    actiondict = {'r': getFile, 's': uploadFile, 'u': unlock, 'd':delete}
+    actiondict = {'r': getFile, 's': uploadFile, 'u': unlock, 'd':delete, 'o':open_file}
     while not done:
-        action = input("Retrieve File: r\nSend File: s\nUnlock File: u\nDelete File: d\n")
+        action = input("Retrieve File: r\nSend File: s\nUnlock File: u\nDelete File: d\nOpen and modify: o")
         file_to_use = input("Perform action on which file?\n")
         actiondict[action](file_to_use)
+

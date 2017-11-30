@@ -5,7 +5,7 @@ from flask import Flask, request
 import requests
 
 app = Flask(__name__)
-ip = "10.6.86.174"
+ip = "10.101.20.40"
 servers = ['2000', '3000']
 directory_dict = {
     "lockserver":'9000'
