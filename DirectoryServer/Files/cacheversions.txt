@@ -1,2 +1,0 @@
-req/requirements.txt 5
-farm/pig.txt 2
