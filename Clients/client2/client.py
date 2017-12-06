@@ -2,24 +2,32 @@
 import os
 import json
 import requests
+from sqlite3 import *
 
-ip = "192.168.1.19"
+
+ip = "10.6.75.8"
 lockserver = "9000"
 
-def getVersionNumber(filename, versions):
-    version_number = '-1'
-    for i, line in enumerate(versions):
-        if not (line == "" or line == "\n"):
-            details = line.split()
-            if details[0] == filename:
-                version_number = details[1].strip('\n')
-                return version_number
-    return version_number
+def init_db():
+    conn = connect('client2')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS versions(id VARCHAR(20) PRIMARY KEY, version VARCHAR(20))
+    ''')
+    conn.commit()
+    conn.close()
+    return conn
+
 
 def getFile(filename): #ask for file
-    cache = open("Files/cacheversions.txt", 'r')
-    versions = cache.readlines()
-    version_number = getVersionNumber(filename, versions)
+    conn = connect('client2')
+    cursor = conn.cursor()
+    version_number = cursor.execute('''SELECT version FROM versions WHERE id = ?''', (filename,)).fetchone()
+    if version_number is None:
+        version_number = '-1'
+    else:
+        version_number = version_number[0]
+    print("current version number is ", version_number)
 
     response = requests.get('http://'+ip+':1000/get_file/'+filename+'/'+version_number)
     print(response)
@@ -32,20 +40,11 @@ def getFile(filename): #ask for file
                 fd.write(chunk)
 
         newVersionNumber = response.headers['new-file-version']
-        
-        found = False
-        for i, line in enumerate(versions): #update version numbers
-            details = line.split()
-            if details[0] == filename:
-                versions[i] = ("%s %s\n" % (details[0], str(newVersionNumber)))
-                found = True
-                break
 
-        if not found:
-            versions.append("%s %s\n" % (filename, str(newVersionNumber)))
-        with open("Files/cacheversions.txt", 'w') as cache:
-            for new_line in versions:
-                cache.write("%s" % new_line)
+        
+        cursor.execute('''INSERT OR REPLACE INTO versions(id, version) VALUES(:id,:version)''', {'id':filename, 'version':newVersionNumber})
+        conn.commit()
+        conn.close()
         return 1
     elif response.status_code == 204:
         print("current version of file is up to date")
@@ -58,9 +57,13 @@ def getFile(filename): #ask for file
         return 2
 
 def uploadFile(to_upload):
-    cache = open("Files/cacheversions.txt", 'r')
-    versions = cache.readlines()
-    version_number = getVersionNumber(to_upload, versions)
+    conn = connect('client2')
+    cursor = conn.cursor()
+    version_number = cursor.execute('''SELECT version FROM versions WHERE id = ?''', (to_upload,)).fetchone()
+    if version_number is None:
+        version_number = '-1'
+    else:
+        version_number = version_number[0]
 
     with open("Files/"+to_upload, 'rb') as f:
         file_version = {"file-version": version_number}
@@ -68,22 +71,10 @@ def uploadFile(to_upload):
 
     newVersionNumber = response.headers['new-file-version']
     print(newVersionNumber)
-    found = False
-    for i, line in enumerate(versions):
-        if not(line == "" or line == '\n'):
-            details = line.split()
-            print(details)
-            if details[0] == to_upload:
-                versions[i] = "%s %s\n" % (details[0], newVersionNumber)
-                found = True
-                break
-    if not found:
-        versions.append("%s %s\n" % (to_upload, newVersionNumber))
-    print("got here")
-    print(versions)
-    cache = open("Files/cacheversions.txt", 'w')
-    for new_line in versions:
-        cache.write("%s" % new_line)
+
+    cursor.execute('''INSERT OR REPLACE INTO versions(id, version) VALUES(:id,:version)''', {'id':to_upload, 'version':newVersionNumber})
+    conn.commit()
+    conn.close()
 
 def unlock(to_unlock):
     response = requests.get('http://'+ip+':'+lockserver+'/unlock_file/'+to_unlock)
@@ -93,9 +84,14 @@ def unlock(to_unlock):
         print("unlock failed")
 
 def delete(to_delete):
+    conn = connect('client2')
+    cursor = conn.cursor()
     response = requests.get('http://'+ip+':1000/delete_file/'+to_delete)
     if response.status_code == 200:
         os.remove("Files/"+to_delete)
+        cursor.execute('''DELETE FROM versions WHERE id = ? ''', (to_delete,))
+        conn.commit()
+        conn.close()
         print("File deleted")
     else:
         print("File not deleted")
@@ -118,10 +114,10 @@ def open_file(name):
     else:
         print("file is locked")
 
-
 if __name__ == "__main__":
     print(requests.get('http://'+ip+':1000'))
     done = False
+    init_db()
     actiondict = {'r': getFile, 's': uploadFile, 'u': unlock, 'd':delete, 'o':open_file}
     while not done:
         action = input("Retrieve File: r\nSend File: s\nUnlock File: u\nDelete File: d\nOpen and modify: o")

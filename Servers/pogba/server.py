@@ -4,7 +4,7 @@ import json
 import requests
 from flask import Flask, request, send_from_directory
 lockserver = '9000'
-ip = "192.168.1.19"
+ip = "10.6.75.8"
 
 
 app = Flask(__name__)
