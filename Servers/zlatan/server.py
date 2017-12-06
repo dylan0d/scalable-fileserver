@@ -1,12 +1,10 @@
 #pylint: disable=C0111, C0103
 import os
-import json
 import requests
 from flask import Flask, request, send_from_directory
+
 lockserver = '9000'
 ip = "10.6.75.8"
-
-
 app = Flask(__name__)
 
 @app.route("/get_file/<path:path>")
@@ -16,7 +14,7 @@ def get_file(path):
     else:
         return "file not found", 404
 
-@app.route("/send_file", methods = ['POST'])
+@app.route("/send_file", methods=['POST'])
 def recv_file():
     response = dict(request.files)
     file_name = list(response.keys())[0]
@@ -47,7 +45,6 @@ def delete_file(filepath):
 @app.route("/") #if you want to check that manager is up
 def hello():
     return "hello", 200
-
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=80)

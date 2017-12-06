@@ -1,9 +1,7 @@
 #pylint: disable=C0111, C0103
+from sqlite3 import connect
 import os
-import json
 import requests
-from sqlite3 import *
-
 
 ip = "10.6.75.8"
 lockserver = "9000"
@@ -18,19 +16,17 @@ def init_db():
     conn.close()
     return conn
 
-
 def getFile(filename): #ask for file
     conn = connect('client2')
     cursor = conn.cursor()
-    version_number = cursor.execute('''SELECT version FROM versions WHERE id = ?''', (filename,)).fetchone()
+
+    version_number = cursor.execute('''SELECT version FROM versions WHERE id = ?''',
+                                    (filename,)).fetchone()
     if version_number is None:
         version_number = '-1'
     else:
         version_number = version_number[0]
-    print("current version number is ", version_number)
-
     response = requests.get('http://'+ip+':1000/get_file/'+filename+'/'+version_number)
-    print(response)
     if response.status_code == 200:
         if not os.path.exists(os.path.dirname('./Files/'+filename)): #create folder
             os.makedirs(os.path.dirname('./Files/'+filename))
@@ -40,9 +36,8 @@ def getFile(filename): #ask for file
                 fd.write(chunk)
 
         newVersionNumber = response.headers['new-file-version']
-
-        
-        cursor.execute('''INSERT OR REPLACE INTO versions(id, version) VALUES(:id,:version)''', {'id':filename, 'version':newVersionNumber})
+        cursor.execute('''INSERT OR REPLACE INTO versions(id, version) VALUES(:id,:version)''',
+                       {'id':filename, 'version':newVersionNumber})
         conn.commit()
         conn.close()
         return 1
@@ -59,7 +54,8 @@ def getFile(filename): #ask for file
 def uploadFile(to_upload):
     conn = connect('client2')
     cursor = conn.cursor()
-    version_number = cursor.execute('''SELECT version FROM versions WHERE id = ?''', (to_upload,)).fetchone()
+    version_number = cursor.execute('''SELECT version FROM versions WHERE id = ?''',
+                                    (to_upload,)).fetchone()
     if version_number is None:
         version_number = '-1'
     else:
@@ -67,12 +63,14 @@ def uploadFile(to_upload):
 
     with open("Files/"+to_upload, 'rb') as f:
         file_version = {"file-version": version_number}
-        response = requests.post('http://'+ip+':1000/send_file', files={to_upload: f}, headers = file_version)
+        response = requests.post('http://'+ip+':1000/send_file',
+                                 files={to_upload: f}, headers=file_version)
 
     newVersionNumber = response.headers['new-file-version']
     print(newVersionNumber)
 
-    cursor.execute('''INSERT OR REPLACE INTO versions(id, version) VALUES(:id,:version)''', {'id':to_upload, 'version':newVersionNumber})
+    cursor.execute('''INSERT OR REPLACE INTO versions(id, version) VALUES(:id,:version)''',
+                   {'id':to_upload, 'version':newVersionNumber})
     conn.commit()
     conn.close()
 
@@ -100,6 +98,7 @@ def open_file(name):
     result = getFile(name)
     if result == 1:
         with open("Files/"+name) as new_file:
+            print("current file contents:")
             print(new_file.read())
     if not result == 0:
         print("write new contents for file")
@@ -118,9 +117,8 @@ if __name__ == "__main__":
     print(requests.get('http://'+ip+':1000'))
     done = False
     init_db()
-    actiondict = {'r': getFile, 's': uploadFile, 'u': unlock, 'd':delete, 'o':open_file}
+    actiondict = {'d':delete, 'o':open_file}
     while not done:
-        action = input("Retrieve File: r\nSend File: s\nUnlock File: u\nDelete File: d\nOpen and modify: o")
+        action = input("Delete File: d\nOpen and modify: o\n")
         file_to_use = input("Perform action on which file?\n")
         actiondict[action](file_to_use)
-

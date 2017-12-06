@@ -1,5 +1,5 @@
 #pylint: disable=C0111, C0103
-from sqlite3 import *
+from sqlite3 import connect
 from flask import Flask
 
 app = Flask(__name__)
@@ -18,10 +18,12 @@ def init_db():
 def checkFile(filepath):
     conn = connect('lockserver')
     cursor = conn.cursor()
-    locked = cursor.execute('''SELECT locked FROM locked_status WHERE id = ?''', (filepath,)).fetchone()
+    locked = cursor.execute('''SELECT locked FROM locked_status WHERE id = ?''',
+                            (filepath,)).fetchone()
     print(filepath, " is ", locked)
     if locked is None or locked[0] is '0':
-        cursor.execute('''INSERT OR REPLACE INTO locked_status(id, locked) VALUES(:id,:version)''', {'id':filepath, 'version':'1'})
+        cursor.execute('''INSERT OR REPLACE INTO locked_status(id, locked) VALUES(:id,:version)''',
+                       {'id':filepath, 'version':'1'})
         conn.commit()
         conn.close()
         return "was open, now locked", 200
@@ -33,7 +35,8 @@ def checkFile(filepath):
 def unlockFile(filepath):
     conn = connect('lockserver')
     cursor = conn.cursor()
-    cursor.execute('''INSERT OR REPLACE INTO locked_status(id, locked) VALUES(:id,:version)''', {'id':filepath, 'version':'0'})
+    cursor.execute('''INSERT OR REPLACE INTO locked_status(id, locked) VALUES(:id,:version)''',
+                   {'id':filepath, 'version':'0'})
     conn.commit()
     conn.close()
     return "unlocked", 200
@@ -42,17 +45,14 @@ def unlockFile(filepath):
 def delete_file(filepath):
     conn = connect('lockserver')
     cursor = conn.cursor()
-    cursor.execute('''DELETE FROM versions WHERE id = ? ''', (filepath,))
+    cursor.execute('''DELETE FROM locked_status WHERE id = ? ''', (filepath,))
     conn.commit()
     conn.close()
     return "file deleted", 200
 
-
-
 @app.route("/") #if you want to check that manager is up
 def hello():
     return "hello", 200
-
 
 if __name__ == "__main__":
     init_db()
