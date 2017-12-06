@@ -1,132 +1,111 @@
 #pylint: disable=C0111, C0103
-import json
+from sqlite3 import connect
 import random
 from flask import Flask, request
 import requests
 
 app = Flask(__name__)
-ip = "192.168.1.19"
+ip = "10.6.75.8"
 servers = ['2000', '3000']
-directory_dict = {
-    "lockserver":'9000'
-}
+
+def init_db():
+    conn = connect('fileserver')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS servers(id VARCHAR(20) PRIMARY KEY, port VARCHAR(20))
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS versions(id VARCHAR(20) PRIMARY KEY, version VARCHAR(20))
+    ''')
+    conn.commit()
+    conn.close()
 
 @app.route("/get_file/<path:filepath>")
 def get_file(filepath):
-    with open("Files/directories.txt", 'r') as directory_file:
-        for line in directory_file.readlines():
-            if not (line == "" or line == "/n"):
-                details = line.split()
-                directory_dict[details[0]] = details[1].strip('\n')
+
+    conn = connect('fileserver')
+    cursor = conn.cursor()
 
     directory = filepath.split('/')[0] #get port
-    print(directory)
+    port = cursor.execute('''SELECT port FROM servers WHERE id = ?''', (directory,)).fetchone()
+
+    if port is None:
+        return "file doesn't exist", 404
+
     file_and_version = filepath.rsplit('/', 1) #get file and version
-    is_locked = requests.get('http://'+ip+':'+directory_dict['lockserver']+'/get_file/'+file_and_version[0])
+    is_locked = requests.get('http://'+ip+':9000/get_file/'+file_and_version[0]) #check lockserver
     client_version_number = file_and_version[1]
     current_version_number = 0
     if is_locked.status_code == 200:
-        cache = open("Files/cacheversions.txt", 'r')
-        versions = cache.readlines()
-        for i, line in enumerate(versions):
-            details = line.split()
-            if details[0] == file_and_version[0]:
-                current_version_number = details[1].strip('\n')
-
-        if int(client_version_number) == int(current_version_number):
+        current_version_number = cursor.execute('''SELECT version FROM versions WHERE id = ?''',
+                                                (file_and_version[0],)).fetchone()
+        if current_version_number is None:
+            return "file doesn't exist", 404
+        elif int(client_version_number) == int(current_version_number[0]):
             return "cached copy is up to date", 204
         else:
-            if directory in directory_dict:
-                response = requests.get('http://'+ip+':'+directory_dict[directory]+'/get_file/'+file_and_version[0])
-                response.headers['new-file-version'] = current_version_number
-                return (response.content, response.status_code, response.headers.items())
-            else:
-                print ("fucked up")
-                return "file doesn't exist", 404
+            response = requests.get('http://'+ip+':'+port[0]+'/get_file/'+file_and_version[0])
+            response.headers['new-file-version'] = current_version_number[0]
+            return (response.content, response.status_code, response.headers.items())
     else:
         return "file is locked", 409
 
-@app.route("/send_file", methods = ['POST'])
+@app.route("/send_file", methods=['POST'])
 def recv_file():
-    with open("Files/directories.txt", 'r') as directory_file:
-        for line in directory_file.readlines():
-            if not (line == "" or line == "/n"):
-                details = line.split()
-                directory_dict[details[0]] = details[1].strip('\n')
+    conn = connect('fileserver')
+    cursor = conn.cursor()
 
     response = dict(request.files)
     file_name = list(response.keys())[0]
     new_file = list(response.values())[0][0]
     folder = file_name.split('/')[0]
-    
+
     versionNumber = request.headers['File-Version']
-    print(versionNumber)
     newVersionNumber = str(int(versionNumber)+1)
-    cache = open("Files/cacheversions.txt", 'r')
-    versions = cache.readlines()
-    directory_file = open("Files/directories.txt", 'r')
-    directories = directory_file.readlines()
-    found = False
-    found_folder = False
-    for i, line in enumerate(versions):
-        if not (line == "" or line == "/n"):
-            details = line.split()
-            if details[0] == file_name:
-                versions[i] = "%s %s\n" % (details[0], newVersionNumber)
-                found = True
-                break
-    if not found:
-        versions.append("%s %s\n" % (file_name, newVersionNumber))
 
-    for i, line in enumerate(directories):
-        if not (line == "" or line == "/n"):
-            details = line.split()
-            if details[0] == folder:
-                found_folder = True
-                break
-    if not found_folder:
-        server = random.choice(servers)
-        directories.append("%s %s\n" % (folder, server))
-        directory_dict[folder] = server
-        with open("Files/directories.txt", 'w') as cache:
-            for new_line in directories:
-                cache.write("%s" % new_line)
-
-    response = requests.post('http://'+ip+':'+directory_dict[folder]+'/send_file', files={file_name: new_file})
+    port = getPort(cursor, folder)
+    response = requests.post('http://'+ip+':'+port+'/send_file', files={file_name: new_file})
 
     if response.status_code == 200:
-        with open("Files/cacheversions.txt", 'w') as cache:
-            for new_line in versions:
-                cache.write("%s" % new_line)
+        cursor.execute('''INSERT OR REPLACE INTO versions(id, version) VALUES(:id,:version)''',
+                       {'id':file_name, 'version':newVersionNumber})
 
         response.headers['new-file-version'] = newVersionNumber
+        conn.commit()
+        conn.close()
         return (response.content, response.status_code, response.headers.items())
 
     return response.content, response.status_code
 
+def getPort(cursor, folder):
+    port = cursor.execute('''SELECT port FROM servers WHERE id = ?''', (folder,)).fetchone()
+
+    if port is None:
+        new_port = random.choice(servers)
+        cursor.execute('''INSERT INTO servers(id, port) VALUES(:id,:port)''',
+                       {'id':folder, 'port':new_port})
+        port = new_port
+    else:
+        port = port[0]
+    return port
+
+
 @app.route("/delete_file/<path:filepath>")
 def delete_file(filepath):
-    with open("Files/directories.txt", 'r') as directory_file:
-        for line in directory_file.readlines():
-            if not (line == "" or line == "/n"):
-                details = line.split()
-                directory_dict[details[0]] = details[1].strip('\n')
+    conn = connect('fileserver')
+    cursor = conn.cursor()
 
-    directory = filepath.split('/')[0] #get port
-    response = requests.get('http://'+ip+':'+directory_dict[directory]+'/delete_file/'+filepath)
+    directory = filepath.split('/')[0]
+    port = getPort(cursor, directory)#get port
+    response = requests.get('http://'+ip+':'+port+'/delete_file/'+filepath)
     if response.status_code == 200:
-        cache = open("Files/cacheversions.txt", 'r')
-        versions = cache.readlines()
-        for i, line in enumerate(versions):
-            details = line.split()
-            if details[0] == filepath:
-                versions.remove(line)
-        with open("Files/cacheversions.txt", 'w') as cache:
-            for new_line in versions:
-                cache.write("%s" % new_line)
-    
+        cursor.execute('''DELETE FROM versions WHERE id = ? ''', (filepath,))
+        conn.commit()
+        conn.close()
+    else:
+        return (response.content, response.status_code, response.headers.items())
+
     return "file deleted", 200
-                    
 
 @app.route("/") #if you want to check that manager is up
 def hello():
